@@ -1,0 +1,16 @@
+{
+  "name": "org-char",
+  "version": "1.0.0",
+  "description": "Organization Hierarchy Manager in TypeScript",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "ts-node src/index.ts",
+    "build": "tsc",
+    "serve": "node dist/index.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.0"
+  }
+}

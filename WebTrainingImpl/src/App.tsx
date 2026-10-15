@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTrash, faPen, faClock, faCheck } from '@fortawesome/free-solid-svg-icons';
+import { faTrash, faPen, faCheck, faXmark, faBook } from '@fortawesome/free-solid-svg-icons';
 
 
 enum Status {
@@ -22,9 +22,8 @@ interface Task {
 const App = () => {
   const [todoInput, setTodoInput] = useState("")
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null)
-  const [modalTodoInput, setModalTodoInput] = useState("")
+  const [editInput, setEditInput] = useState("")
   const [filteredOn, setFilteredOn] = useState<Filter>(Filter.All)
   const [modalDeleteConfirmation, setModalDeleteConfirmation] = useState<Task | null>(null)
 
@@ -61,152 +60,173 @@ const App = () => {
   }
 
   const updateTask = () => {
-        setTasks((mapTask) => mapTask.map( mappedTask => {
+    setTasks((mapTask) => mapTask.map( mappedTask => {
       if( editingTask && mappedTask.task === editingTask.task) {
-        mappedTask.task = modalTodoInput
-        return mappedTask
+        return { ...mappedTask, task: editInput }
       }
 
       return mappedTask
     }))
 
-    setIsModalOpen(false)
-      setEditingTask(null)
-      setModalTodoInput("")
+    cancelEdit()
   }
 
   const editTask = (task: Task) => {
-      setIsModalOpen(true)
       setEditingTask(task)
-      setModalTodoInput(task.task)
+      setEditInput(task.task)
   }
 
+  const cancelEdit = () => {
+    setEditingTask(null)
+    setEditInput("")
+  }
+
+  const filterButtonClass = (filter: Filter) =>
+    `flex-1 mx-2 first:ml-0 last:mr-0 py-2 text-sm text-white cursor-pointer transition-colors ${
+      filteredOn === filter ? 'bg-[#006f7d]' : 'bg-[#008b9c] hover:bg-[#007a8a]'
+    }`
 
   return (
-    <>
-      <div className='text-5xl text-center'>Todo Application</div>
-      
-      <div className='flex flex-col items-center my-5'>
-        <div className='flex items-center'>
-          <input 
-            type="text" 
-            className='border-2 w-2xl p-2 rounded'
+    <div className='max-w-xl mx-auto px-3 py-5 text-slate-800'>
+      <h1 className='text-2xl text-center mb-3'>TodoInput</h1>
+
+      <div className='border border-slate-300 rounded p-3 bg-white'>
+        <div className='flex items-stretch border border-slate-300 rounded overflow-hidden'>
+          <span className='flex items-center justify-center w-9 bg-[#008b9c] text-white'>
+            <FontAwesomeIcon icon={faBook} className='w-3.5 h-3.5' />
+          </span>
+          <input
+            type="text"
+            className='flex-1 px-3 py-2 text-sm outline-none'
             value={todoInput}
-            onChange={e => setTodoInput(e.target.value)} 
-            placeholder='Add new Todo'
+            onChange={e => setTodoInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') addNewTask(todoInput) }}
+            placeholder='New Todo'
           />
-          
-          <button className='px-4 py-2 mx-2 bg-blue-400 cursor-pointer' onClick={() => addNewTask(todoInput)}>Add</button>
         </div>
+
+        <button
+          className='w-full mt-3 py-2 text-sm text-white bg-[#008b9c] hover:bg-[#007a8a] cursor-pointer transition-colors rounded-sm'
+          onClick={() => addNewTask(todoInput)}
+        >
+          Add new task
+        </button>
       </div>
 
-      
+      {/* Todo list */}
+      <h2 className='text-2xl text-center mt-5 mb-3'>TodoList</h2>
 
       {tasks.length > 0 ?
       <>
-      <div className='flex flex-row justify-center'>
-        <button className={`p-3 m-3 ${filteredOn === Filter.All ? 'bg-blue-500' : 'bg-blue-300'} cursor-pointer`} onClick={()=>setFilteredOn(Filter.All)}>All</button>
-        <button className={`p-3 m-3 ${filteredOn === Filter.Done ? 'bg-blue-500' : 'bg-blue-300'} cursor-pointer`} onClick={()=>setFilteredOn(Filter.Done)}>Done</button>
-        <button className={`p-3 m-3 ${filteredOn === Filter.Pending ? 'bg-blue-500' : 'bg-blue-300'} cursor-pointer`} onClick={()=>setFilteredOn(Filter.Pending)}>Pending</button>
+      <div className='flex flex-row'>
+        <button className={filterButtonClass(Filter.All)} onClick={()=>setFilteredOn(Filter.All)}>All</button>
+        <button className={filterButtonClass(Filter.Done)} onClick={()=>setFilteredOn(Filter.Done)}>Done</button>
+        <button className={filterButtonClass(Filter.Pending)} onClick={()=>setFilteredOn(Filter.Pending)}>Todo</button>
       </div>
 
-      <div className='flex flex-col items-center gap-2'>
+      <div className='flex flex-col gap-3 mt-8'>
           {tasks.filter(x => {
             if(filteredOn===Filter.Done) return x.status === Status.Done
             else if(filteredOn===Filter.Pending) return x.status === Status.Pending
             else return true
-          }).sort((a, b) => (a.status === Status.Done ? 0 : 1) - (b.status === Status.Done ? 0 : 1)).map((task) => (
-          <div className='p-2 border rounded w-full max-w-md bg-white flex justify-between'>
-            <span className={`${task.status === Status.Done ? 'line-through text-green-600' : ''}`}>{task.task}</span>
+          }).sort((a, b) => (a.status === Status.Done ? 0 : 1) - (b.status === Status.Done ? 0 : 1)).map((task) => {
+            const isEditing = editingTask?.task === task.task
 
-            <div className='flex flex-row gap-2'>
-            <button 
-            onClick={()=>setModalDeleteConfirmation(task)} 
-            className="p-2.5 rounded-lg bg-rose-500 text-white font-medium text-sm flex items-center justify-center transition-colors"
-            title="Delete Item"
-            disabled={task.status!==Status.Done}
-            >
-              <FontAwesomeIcon icon={faTrash} className="w-4 h-4" />
-            </button>
-            <button 
-            onClick={()=>markTaskAsComplete(task)} 
-            className="p-2.5 rounded-lg bg-green-500 text-white font-medium text-sm flex items-center justify-center"
-            title={task.status === Status.Pending ? "Mark as Complete" : "Completed"}
-            disabled={task.status===Status.Done}
-            >
-              {task.status === Status.Pending ? <FontAwesomeIcon icon={faClock} className="w-4 h-4" /> : <FontAwesomeIcon icon={faCheck} className='"w-4 h-4'/>}
-            </button>
-             <button 
-            onClick={()=>editTask(task)} 
-            className="p-2.5 rounded-lg bg-slate-300 font-medium text-sm flex items-center justify-center transition-colors"
-            title="Edit Item"
-            disabled={task.status===Status.Done}
-            >
-              <FontAwesomeIcon icon={faPen} className="w-4 h-4" />
-            </button> 
+            return (
+          <div key={task.task} className='px-4 py-3 border border-slate-300 rounded-sm w-full bg-white flex items-center justify-between gap-3'>
+            {isEditing ? (
+              <input
+                type="text"
+                autoFocus
+                className='flex-1 min-w-0 px-2 py-1 border border-[#008b9c] rounded-sm text-sm outline-none'
+                value={editInput}
+                onChange={e => setEditInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') updateTask()
+                  if (e.key === 'Escape') cancelEdit()
+                }}
+              />
+            ) : (
+              <span className={`text-sm break-words min-w-0 ${task.status === Status.Done ? 'line-through text-red-500' : 'font-semibold'}`}>{task.task}</span>
+            )}
+
+            <div className='flex flex-row items-center gap-3 shrink-0'>
+            {isEditing ? (
+              <>
+                <button
+                  onClick={() => updateTask()}
+                  className="text-green-600 cursor-pointer"
+                  title="Save Changes"
+                >
+                  <FontAwesomeIcon icon={faCheck} className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => cancelEdit()}
+                  className="text-slate-500 cursor-pointer"
+                  title="Cancel"
+                >
+                  <FontAwesomeIcon icon={faXmark} className="w-4 h-4" />
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={()=>markTaskAsComplete(task)}
+                  className={`w-3.5 h-3.5 border rounded-sm flex items-center justify-center ${task.status === Status.Done ? 'border-green-600 text-green-600' : 'border-slate-500 cursor-pointer'}`}
+                  title={task.status === Status.Pending ? "Mark as Complete" : "Completed"}
+                  disabled={task.status===Status.Done}
+                >
+                  {task.status === Status.Done && <FontAwesomeIcon icon={faCheck} className="w-2.5 h-2.5" />}
+                </button>
+                <button
+                  onClick={()=>editTask(task)}
+                  className="text-amber-400 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  title="Edit Item"
+                  disabled={task.status===Status.Done}
+                >
+                  <FontAwesomeIcon icon={faPen} className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={()=>setModalDeleteConfirmation(task)}
+                  className="text-red-500 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  title="Delete Item"
+                  disabled={task.status!==Status.Done}
+                >
+                  <FontAwesomeIcon icon={faTrash} className="w-3.5 h-3.5" />
+                </button>
+              </>
+            )}
             </div>
           </div>
-          ))}
-      </div> 
-      </> : 
+          )})}
+      </div>
+      </> :
       <div className='flex flex-row text-red-500 justify-center'>
         NO TASK IS AVAILABLE
       </div>
         }
 
-
-  {isModalOpen && editingTask && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-    <div className="bg-white shadow-xl border border-slate-100 p-6 w-full max-w-md mx-4">
-      <h3 className="text-lg font-semibold text-slate-800 mb-2">Edit Task</h3>
-      <p className="text-xs text-slate-500 mb-4">Update the description of your task below.</p>
-      
-      <input
-        type="text"
-        defaultValue={editingTask.task}
-        className="w-full px-3 py-2 border border-slate-200 text-sm text-slate-800 mb-6"
-        value={modalTodoInput}
-        onChange={e => setModalTodoInput(e.target.value)}
-      />
-
-      <div className="flex justify-end gap-3">
-        <button
-          onClick={() => { setIsModalOpen(false); setEditingTask(null); setModalTodoInput("")}}
-          className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={() => updateTask()}
-          className="px-4 py-2 text-sm font-medium text-white bg-blue-400"
-        >
-          Save Changes
-        </button>
-      </div>
+      {modalDeleteConfirmation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white shadow-xl border border-slate-100 p-6 w-full max-w-md mx-4">
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={() => { setModalDeleteConfirmation(null)}}
+                className="px-4 py-2 text-sm font-medium text-white bg-slate-500"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => deleteTask()}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-800"
+              >
+                Confirm deletion
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  </div>
-)}
-{modalDeleteConfirmation && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-    <div className="bg-white shadow-xl border border-slate-100 p-6 w-full max-w-md mx-4">
-        <div className="flex justify-center gap-3">
-        <button
-          onClick={() => { setModalDeleteConfirmation(null)}}
-          className="px-4 py-2 text-sm font-medium text-white  bg-slate-500"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={() => deleteTask()}
-          className="px-4 py-2 text-sm font-medium text-white bg-red-800"
-        >
-          Confirm deletion
-        </button>
-      </div>
-    </div>
-    </div>
-)}
-    </>
   )
 }
 

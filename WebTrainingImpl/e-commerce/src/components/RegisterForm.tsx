@@ -1,9 +1,10 @@
-import { useActionState, useId } from 'react'
+import { useActionState, useId, type Ref } from 'react'
 import { useFormStatus } from 'react-dom'
 import { registerUser } from '../api/register'
 import { useUser } from '../context/UserContext'
 import type { FieldErrors } from '../types'
 import { validateRegistration } from '../validation'
+import TextInput from './TextInput'
 
 interface RegisterState {
   status: 'idle' | 'error' | 'success'
@@ -26,9 +27,10 @@ interface FieldProps {
   autoComplete: string
   defaultValue?: string
   error?: string
+  inputRef?: Ref<HTMLInputElement>
 }
 
-function Field({ label, name, type, autoComplete, defaultValue, error }: FieldProps) {
+function Field({ label, name, type, autoComplete, defaultValue, error, inputRef }: FieldProps) {
   const { pending } = useFormStatus()
   const id = useId()
   const errorId = `${id}-error`
@@ -38,7 +40,8 @@ function Field({ label, name, type, autoComplete, defaultValue, error }: FieldPr
       <label htmlFor={id} className="block text-sm font-medium text-slate-800">
         {label}
       </label>
-      <input
+      <TextInput
+        ref={inputRef}
         id={id}
         name={name}
         type={type}
@@ -80,7 +83,7 @@ function SubmitButton() {
   )
 }
 
-export default function RegisterForm() {
+export default function RegisterForm({ nameInputRef }: { nameInputRef?: Ref<HTMLInputElement> }) {
   const { setUser } = useUser()
 
   const [state, formAction] = useActionState<RegisterState, FormData>(async (_prev, formData) => {
@@ -137,7 +140,7 @@ export default function RegisterForm() {
       )}
 
       <form action={formAction} noValidate className="mt-4 space-y-4">
-        <Field label="Name" name="name" type="text" autoComplete="name" defaultValue={state.values.name} error={state.errors.name} />
+        <Field label="Name" name="name" type="text" autoComplete="name" inputRef={nameInputRef} defaultValue={state.values.name} error={state.errors.name} />
         <Field label="Email" name="email" type="email" autoComplete="email" defaultValue={state.values.email} error={state.errors.email} />
         <Field label="Password" name="password" type="password" autoComplete="new-password" error={state.errors.password} />
         <SubmitButton />

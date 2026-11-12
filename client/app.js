@@ -1,33 +1,64 @@
 const app = document.getElementById("app");
 
+function readInitialUser() {
+    const el = document.getElementById("initial-user");
+    if (!el) return {};
+
+    try {
+        const data = JSON.parse(el.textContent);
+        return data && typeof data === "object" ? data : {};
+    } catch {
+        return {};
+    }
+}
+
+const initialUser = readInitialUser();
 const params = new URLSearchParams(window.location.search);
 
-const username =
-    params.get("name") ||
-    window.initialUser?.name ||
-    "Guest";
+const username = (params.get("name") || initialUser.name || "Guest")
+    .toString()
+    .slice(0, 50);
 
-app.innerHTML = `
-    <section class="profile-card">
-        <h2>Welcome, ${username}</h2>
+function createLine(label, value) {
+    const p = document.createElement("p");
+    p.textContent = `${label}: ${value}`;
+    return p;
+}
 
-        <p>
-            Email:
-            ${window.initialUser?.email || "Unknown"}
-        </p>
+function renderProfile() {
+    const section = document.createElement("section");
+    section.className = "profile-card";
 
-        <p>
-            Role:
-            ${window.initialUser?.role || "User"}
-        </p>
-    </section>
-`;
+    const heading = document.createElement("h2");
+    heading.textContent = `Welcome, ${username}`;
+
+    section.append(
+        heading,
+        createLine("Email", initialUser.email || "Unknown"),
+        createLine("Role", initialUser.role || "User")
+    );
+
+    app.replaceChildren(section);
+}
+
+renderProfile();
+
+const ALLOWED_SETTINGS = {
+    theme: ["light", "dark"],
+    language: ["en", "fr"],
+    fontSize: ["small", "medium", "large"]
+};
 
 function prepareSettings(userSettings) {
     const settings = {};
 
-    for (const key in userSettings) {
-        settings[key] = userSettings[key];
+    for (const key of Object.keys(ALLOWED_SETTINGS)) {
+        if (
+            Object.hasOwn(userSettings, key) &&
+            ALLOWED_SETTINGS[key].includes(userSettings[key])
+        ) {
+            settings[key] = userSettings[key];
+        }
     }
 
     return settings;

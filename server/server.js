@@ -2,17 +2,35 @@ const express = require("express");
 const path = require("path");
 
 const { user, defaultSettings } = require("./data");
+const {
+    escapeHtml,
+    serializeForHtml,
+    toPublicUser,
+    validateSettings,
+    securityHeaders
+} = require("./security");
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
-app.use(express.json());
+app.disable("x-powered-by");
+
+app.use(securityHeaders);
+
+app.use(express.json({ limit: "10kb" }));
 
 /*
  * Home page
  */
 app.get("/", (req, res) => {
-    const initialUserData = JSON.stringify(user);
+    const initialUserData = serializeForHtml(toPublicUser(user));
+
+    res.cookie("sessionToken", user.sessionToken, {
+        httpOnly: true,
+        sameSite: "strict",
+        secure: process.env.NODE_ENV === "production",
+        path: "/"
+    });
 
     res.send(`
         <!DOCTYPE html>
@@ -75,9 +93,7 @@ app.get("/", (req, res) => {
                 </section>
             </main>
 
-            <script>
-                window.initialUser = ${initialUserData};
-            </script>
+            <script type="application/json" id="initial-user">${initialUserData}</script>
 
             <script src="/app.js"></script>
         </body>
@@ -89,7 +105,7 @@ app.get("/", (req, res) => {
  * Profile API
  */
 app.get("/api/profile", (req, res) => {
-    res.json(user);
+    res.json(toPublicUser(user));
 });
 
 /*
@@ -100,13 +116,13 @@ app.get("/api/settings", (req, res) => {
 });
 
 app.post("/api/settings", (req, res) => {
-    const incomingSettings = req.body;
+    const result = validateSettings(req.body, defaultSettings);
 
-    const settings = {};
-
-    for (const key in incomingSettings) {
-        settings[key] = incomingSettings[key];
+    if (!result.ok) {
+        return res.status(400).json({ message: "Invalid settings." });
     }
+
+    const settings = result.settings;
 
     res.json({
         message: "Settings saved successfully.",
@@ -129,31 +145,7 @@ app.get("/account", (req, res) => {
             >
             <title>Account Settings</title>
 
-            <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    background: #f4f4f4;
-                    margin: 0;
-                    padding: 40px;
-                }
-
-                .account-card {
-                    max-width: 600px;
-                    margin: auto;
-                    background: white;
-                    padding: 30px;
-                    border-radius: 8px;
-                }
-
-                .danger {
-                    background: #c62828;
-                    color: white;
-                    border: none;
-                    padding: 12px 20px;
-                    cursor: pointer;
-                    border-radius: 4px;
-                }
-            </style>
+            <link rel="stylesheet" href="/account.css">
         </head>
 
         <body>
@@ -162,17 +154,17 @@ app.get("/account", (req, res) => {
 
                 <p>
                     <strong>Name:</strong>
-                    ${user.name}
+                    ${escapeHtml(user.name)}
                 </p>
 
                 <p>
                     <strong>Email:</strong>
-                    ${user.email}
+                    ${escapeHtml(user.email)}
                 </p>
 
                 <p>
                     <strong>Role:</strong>
-                    ${user.role}
+                    ${escapeHtml(user.role)}
                 </p>
 
                 <button
@@ -185,14 +177,7 @@ app.get("/account", (req, res) => {
                 <p id="status"></p>
             </div>
 
-            <script>
-                document
-                    .getElementById("delete-account")
-                    .addEventListener("click", () => {
-                        document.getElementById("status").textContent =
-                            "Account deletion action triggered.";
-                    });
-            </script>
+            <script src="/account.js"></script>
         </body>
         </html>
     `);
@@ -200,6 +185,18 @@ app.get("/account", (req, res) => {
 
 app.use(express.static(path.join(__dirname, "..", "client")));
 
-app.listen(PORT, () => {
-    console.log(`Application running at http://localhost:${PORT}`);
+app.use((err, req, res, next) => {
+    if (err && err.status >= 400 && err.status < 500) {
+        return res.status(400).json({ message: "Bad request." });
+    }
+    console.error(err);
+    res.status(500).json({ message: "Internal server error." });
 });
+
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`Application running at http://localhost:${PORT}`);
+    });
+}
+
+module.exports = app;

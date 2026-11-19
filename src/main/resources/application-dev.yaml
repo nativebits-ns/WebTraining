@@ -1,0 +1,7 @@
+# Active by default. Seeds sample data and enables verbose logging.
+logging:
+  level:
+    com.nachiket.leaveManagement: DEBUG
+
+leave:
+  max-duration-days: 60

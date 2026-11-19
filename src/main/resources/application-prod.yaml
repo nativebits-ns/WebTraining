@@ -1,0 +1,7 @@
+logging:
+  level:
+    root: WARN
+    com.nachiket.leaveManagement: INFO
+
+leave:
+  max-duration-days: 30
